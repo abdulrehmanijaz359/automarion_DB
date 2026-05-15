@@ -139,8 +139,8 @@ class CommandExecutor:
                 col   = step['to_col']
 
                 # Convert level to integer for PLC
-                level_int = {'A':1, 'B':2, 'C':3,
-                             'R':4, 'EXIT':5}.get(level, 0)
+                
+                level_int = {'A':1, 'B':2, 'C':3, 'R':4}.get(level, 0)
 
                 # Send place command to PLC
                 success = self.plc.send_command(

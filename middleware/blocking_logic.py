@@ -25,22 +25,19 @@ class BlockingLogic:
         blocking = []
 
         if level == 'A':
-            # Check B and C
-            slot_b = self.get_slot('B', row, col)
             slot_c = self.get_slot('C', row, col)
-            if slot_b and slot_b['status'] == 'occupied':
-                blocking.append(slot_b)
+            slot_b = self.get_slot('B', row, col)
             if slot_c and slot_c['status'] == 'occupied':
                 blocking.append(slot_c)
+            if slot_b and slot_b['status'] == 'occupied':
+                blocking.append(slot_b)
 
         elif level == 'B':
-            # Check C only
             slot_c = self.get_slot('C', row, col)
             if slot_c and slot_c['status'] == 'occupied':
                 blocking.append(slot_c)
 
         elif level == 'C':
-            # Nothing blocks C
             pass
 
         return blocking
@@ -53,13 +50,11 @@ class BlockingLogic:
         return self.cursor.fetchall()
 
     def check_access(self, level, row, col):
-        # Get blocking slots
         blocking = self.get_blocking_slots(level, row, col)
 
         if not blocking:
             return True, [], "Slot is accessible"
 
-        # Check if we have enough reserved slots
         reserved = self.get_reserved_slots()
 
         if len(reserved) >= len(blocking):
