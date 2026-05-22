@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────
-# CONFIG — change these after meeting
+# CONFIG
 # ─────────────────────────────────────────
 
 # PLC Settings
@@ -9,17 +9,17 @@ PLC_SLOT = 1
 
 # DB11 — Commands (we write TO this)
 DB_COMMAND    = 11
-OFFSET_ACTION = 0   # INT - 0=home, 1=retrieve, 2=store
-OFFSET_LEVEL  = 2   # INT - 1=A, 2=B, 3=C
-OFFSET_ROW    = 4   # INT - 1, 2, 3
-OFFSET_COL    = 6   # INT - 1, 2, 3
+OFFSET_ACTION = 0
+OFFSET_LEVEL  = 2
+OFFSET_ROW    = 4
+OFFSET_COL    = 6
 
 # DB12 — Status (we read FROM this)
 DB_STATUS         = 12
-OFFSET_GRIPPER    = 0  # INT - 0=idle, 1=moving, 2=done, 3=error
-OFFSET_CURR_LEVEL = 2  # INT - current level
-OFFSET_CURR_ROW   = 4  # INT - current row
-OFFSET_CURR_COL   = 6  # INT - current col
+OFFSET_GRIPPER    = 0
+OFFSET_CURR_LEVEL = 2
+OFFSET_CURR_ROW   = 4
+OFFSET_CURR_COL   = 6
 
 # Action integers
 ACTION_HOME     = 0
@@ -50,6 +50,6 @@ SLOT_ENTRY    = 'entry'
 SLOT_EXIT     = 'exit'
 
 # Timing
-POLL_INTERVAL     = 0.5   # seconds between checking DB12
-COMMAND_TIMEOUT   = 30    # seconds before command times out
-LOOP_INTERVAL     = 1     # seconds between middleware loops
+POLL_INTERVAL   = 0.5
+COMMAND_TIMEOUT = 30
+LOOP_INTERVAL   = 1

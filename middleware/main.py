@@ -5,7 +5,7 @@ import mysql.connector
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import *
 from plc_simulator import PLCSimulator
-# from plc_connection import PLCConnection  # uncomment when real PLC is ready
+# from plc_connection import PLCConnection
 from blocking_logic import BlockingLogic
 from relocation import Relocation
 from command_executor import CommandExecutor
@@ -26,19 +26,33 @@ class WarehouseMiddleware:
         self.cursor = self.conn.cursor(dictionary=True)
         print("✅ Database connected!")
 
-        # Start PLC (simulator for now)
+        # Start PLC simulator
         self.plc = PLCSimulator()
-        # self.plc = PLCConnection()  # uncomment for real PLC
+        # self.plc = PLCConnection()
         # self.plc.connect()
 
-        # Initialize all modules
-        self.blocking  = BlockingLogic()
-        self.relocation = Relocation()
-        self.executor  = CommandExecutor(self.plc)
+        # Initialize modules
+        self.blocking    = BlockingLogic()
+        self.relocation  = Relocation()
+        self.executor    = CommandExecutor(self.plc)
         print("✅ All modules loaded!")
+
+        # Clear old pending commands on startup
+        self.cursor.execute("""
+            UPDATE commands
+            SET status='cancelled'
+            WHERE status='pending'
+        """)
+        self.conn.commit()
+        print("🧹 Cleared old pending commands!")
+
         print("=" * 60)
         print("👂 Listening for commands...")
         print("   Press Ctrl+C to stop\n")
+
+    # ─────────────────────────────────────
+    # DATABASE HELPERS
+    # ─────────────────────────────────────
 
     def get_pending_commands(self):
         self.cursor.execute("""
@@ -65,6 +79,10 @@ class WarehouseMiddleware:
         """, (command_id,))
         self.conn.commit()
 
+    # ─────────────────────────────────────
+    # PROCESS COMMAND
+    # ─────────────────────────────────────
+
     def process_command(self, command):
         command_id   = command['id']
         command_type = command['command_type']
@@ -79,12 +97,12 @@ class WarehouseMiddleware:
         if item_name:
             print(f"   Item  : {item_name}")
 
-        # ─────────────────────────────────────
-        # HANDLE RETRIEVE
-        # ─────────────────────────────────────
+        # ─────────────────────────────
+        # RETRIEVE
+        # ─────────────────────────────
         if command_type == 'retrieve':
 
-            # Check blocking logic
+            # Check blocking
             accessible, blocking_slots, message = \
                 self.blocking.check_access(level, row, col)
 
@@ -94,7 +112,7 @@ class WarehouseMiddleware:
                 self.reject_command(command_id, message)
                 return
 
-            # Check if slot has an item
+            # Check if slot has item
             self.cursor.execute("""
                 SELECT * FROM slots
                 WHERE level=%s AND row_num=%s AND col_num=%s
@@ -108,43 +126,42 @@ class WarehouseMiddleware:
                 )
                 return
 
-            # Approve command
+            # Approve and build sequence
             self.approve_command(command_id)
 
-            # Build sequence
             steps, temp = self.relocation.build_sequence(
                 command_id, level, row, col, blocking_slots
             )
             self.relocation.save_sequence(steps)
 
-            # Execute sequence
+            # Execute
             success = self.executor.execute_sequence(command_id)
 
             if success:
-                print(f"\n✅ Retrieved {slot['item_name']} from {level}({row},{col})")
+                print(f"\n✅ Retrieved {slot['item_name']} "
+                      f"from {level}({row},{col})")
             else:
                 print(f"\n❌ Retrieval failed!")
 
-        # ─────────────────────────────────────
-        # HANDLE STORE
-        # ─────────────────────────────────────
+        # ─────────────────────────────
+        # STORE
+        # ─────────────────────────────
         elif command_type == 'store':
 
-            # Check if slot is empty
+            # Check stacking rules
+            can, reason = self.blocking.can_store(level, row, col)
+
+            if not can:
+                self.reject_command(command_id, reason)
+                return
+
+            # Check if reserved slot
             self.cursor.execute("""
                 SELECT * FROM slots
                 WHERE level=%s AND row_num=%s AND col_num=%s
             """, (level, row, col))
             slot = self.cursor.fetchone()
 
-            if slot and slot['status'] == 'occupied':
-                self.reject_command(
-                    command_id,
-                    f"Slot {level}({row},{col}) is already occupied by {slot['item_name']}!"
-                )
-                return
-
-            # Check if slot is reserved
             if slot and slot['slot_type'] == 'reserved':
                 self.reject_command(
                     command_id,
@@ -152,81 +169,72 @@ class WarehouseMiddleware:
                 )
                 return
 
-            # Approve and execute
+            # Approve command
             self.approve_command(command_id)
 
-            # Build simple store sequence
-            steps = []
-
-            # Step 1 - HOME
-            steps.append({
-                'command_id'  : command_id,
-                'step_number' : 1,
-                'action'      : 'HOME',
-                'from_level'  : None,
-                'from_row'    : None,
-                'from_col'    : None,
-                'to_level'    : None,
-                'to_row'      : None,
-                'to_col'      : None,
-                'status'      : 'pending'
-            })
-
-            # Step 2 - PICK from entry
-            steps.append({
-                'command_id'  : command_id,
-                'step_number' : 2,
-                'action'      : 'PICK',
-                'from_level'  : 'ENTRY',
-                'from_row'    : 0,
-                'from_col'    : 0,
-                'to_level'    : None,
-                'to_row'      : None,
-                'to_col'      : None,
-                'status'      : 'pending'
-            })
-
-            # Step 3 - HOME
-            steps.append({
-                'command_id'  : command_id,
-                'step_number' : 3,
-                'action'      : 'HOME',
-                'from_level'  : None,
-                'from_row'    : None,
-                'from_col'    : None,
-                'to_level'    : None,
-                'to_row'      : None,
-                'to_col'      : None,
-                'status'      : 'pending'
-            })
-
-            # Step 4 - PLACE at target slot
-            steps.append({
-                'command_id'  : command_id,
-                'step_number' : 4,
-                'action'      : 'PLACE',
-                'from_level'  : None,
-                'from_row'    : None,
-                'from_col'    : None,
-                'to_level'    : level,
-                'to_row'      : row,
-                'to_col'      : col,
-                'status'      : 'pending'
-            })
-
-            # Step 5 - HOME
-            steps.append({
-                'command_id'  : command_id,
-                'step_number' : 5,
-                'action'      : 'HOME',
-                'from_level'  : None,
-                'from_row'    : None,
-                'from_col'    : None,
-                'to_level'    : None,
-                'to_row'      : None,
-                'to_col'      : None,
-                'status'      : 'pending'
-            })
+            # Build store sequence
+            steps = [
+                {
+                    'command_id' : command_id,
+                    'step_number': 1,
+                    'action'     : 'HOME',
+                    'from_level' : None,
+                    'from_row'   : None,
+                    'from_col'   : None,
+                    'to_level'   : None,
+                    'to_row'     : None,
+                    'to_col'     : None,
+                    'status'     : 'pending'
+                },
+                {
+                    'command_id' : command_id,
+                    'step_number': 2,
+                    'action'     : 'PICK',
+                    'from_level' : 'ENTRY',
+                    'from_row'   : 0,
+                    'from_col'   : 0,
+                    'to_level'   : None,
+                    'to_row'     : None,
+                    'to_col'     : None,
+                    'status'     : 'pending'
+                },
+                {
+                    'command_id' : command_id,
+                    'step_number': 3,
+                    'action'     : 'HOME',
+                    'from_level' : None,
+                    'from_row'   : None,
+                    'from_col'   : None,
+                    'to_level'   : None,
+                    'to_row'     : None,
+                    'to_col'     : None,
+                    'status'     : 'pending'
+                },
+                {
+                    'command_id' : command_id,
+                    'step_number': 4,
+                    'action'     : 'PLACE',
+                    'from_level' : None,
+                    'from_row'   : None,
+                    'from_col'   : None,
+                    'to_level'   : level,
+                    'to_row'     : row,
+                    'to_col'     : col,
+                    'status'     : 'pending'
+                },
+                {
+                    'command_id' : command_id,
+                    'step_number': 5,
+                    'action'     : 'HOME',
+                    'from_level' : None,
+                    'from_row'   : None,
+                    'from_col'   : None,
+                    'to_level'   : None,
+                    'to_row'     : None,
+                    'to_col'     : None,
+                    'status'     : 'pending'
+                }
+            ]
 
             self.relocation.save_sequence(steps)
 
@@ -241,7 +249,6 @@ class WarehouseMiddleware:
             success = self.executor.execute_sequence(command_id)
 
             if success:
-                # Update slot in database
                 self.cursor.execute("""
                     UPDATE slots
                     SET status='occupied', item_name=%s
@@ -252,24 +259,52 @@ class WarehouseMiddleware:
             else:
                 print(f"\n❌ Store failed!")
 
+    # ─────────────────────────────────────
+    # MAIN LOOP
+    # ─────────────────────────────────────
+
     def run(self):
         try:
             while True:
-                # Check for pending commands
-                commands = self.get_pending_commands()
+                try:
+                    # Check for new pending commands
+                    commands = self.get_pending_commands()
 
-                if commands:
-                    for command in commands:
-                        self.process_command(command)
-                else:
-                    # No commands — wait and check again
-                    print(".", end="", flush=True)
+                    if commands:
+                        for command in commands:
+                            self.process_command(command)
+                    else:
+                        print(".", end="", flush=True)
+
+                except mysql.connector.Error as e:
+                    print(f"\n❌ Database error: {e}")
+                    print("🔄 Reconnecting to database...")
+                    try:
+                        self.conn = mysql.connector.connect(
+                            host=DB_HOST,
+                            user=DB_USER,
+                            password=DB_PASSWORD,
+                            database=DB_NAME
+                        )
+                        self.cursor = self.conn.cursor(dictionary=True)
+                        print("✅ Reconnected!")
+                    except:
+                        print("❌ Reconnect failed — retrying in 5s...")
+                        time.sleep(5)
+
+                except Exception as e:
+                    print(f"\n❌ Unexpected error: {e}")
+                    print("🔄 Continuing loop...")
 
                 time.sleep(LOOP_INTERVAL)
 
         except KeyboardInterrupt:
             print("\n\n🛑 Middleware stopped by user!")
             self.cleanup()
+
+    # ─────────────────────────────────────
+    # CLEANUP
+    # ─────────────────────────────────────
 
     def cleanup(self):
         try:
@@ -282,6 +317,7 @@ class WarehouseMiddleware:
 # ─────────────────────────────────────
 # RUN
 # ─────────────────────────────────────
+
 if __name__ == '__main__':
     middleware = WarehouseMiddleware()
     middleware.run()

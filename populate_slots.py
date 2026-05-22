@@ -10,49 +10,44 @@ conn = mysql.connector.connect(
 
 cursor = conn.cursor()
 
-# Clear existing slots
 cursor.execute("DELETE FROM slots")
 print("🗑️ Cleared existing slots!")
 
-# ─────────────────────────────────────────
-# 27 NORMAL warehouse slots
-# ─────────────────────────────────────────
+# 27 normal warehouse slots
 levels = ['A', 'B', 'C']
 for level in levels:
     for row in range(1, 4):
         for col in range(1, 4):
             cursor.execute("""
-                INSERT INTO slots (level, row_num, col_num, slot_type, status)
+                INSERT INTO slots
+                (level, row_num, col_num, slot_type, status)
                 VALUES (%s, %s, %s, 'normal', 'empty')
             """, (level, row, col))
 
 print("✅ 27 normal slots created!")
 
-# ─────────────────────────────────────────
-# 3 RESERVED slots (outside warehouse)
-# ─────────────────────────────────────────
+# 3 reserved slots
 for i in range(1, 4):
     cursor.execute("""
-        INSERT INTO slots (level, row_num, col_num, slot_type, status)
+        INSERT INTO slots
+        (level, row_num, col_num, slot_type, status)
         VALUES ('R', %s, 0, 'reserved', 'empty')
     """, (i,))
 
 print("✅ 3 reserved slots created!")
 
-# ─────────────────────────────────────────
-# 1 ENTRY slot
-# ─────────────────────────────────────────
+# Entry slot
 cursor.execute("""
-    INSERT INTO slots (level, row_num, col_num, slot_type, status)
+    INSERT INTO slots
+    (level, row_num, col_num, slot_type, status)
     VALUES ('ENTRY', 0, 0, 'entry', 'empty')
 """)
 print("✅ Entry slot created!")
 
-# ─────────────────────────────────────────
-# 1 EXIT slot
-# ─────────────────────────────────────────
+# Exit slot
 cursor.execute("""
-    INSERT INTO slots (level, row_num, col_num, slot_type, status)
+    INSERT INTO slots
+    (level, row_num, col_num, slot_type, status)
     VALUES ('EXIT', 0, 0, 'exit', 'empty')
 """)
 print("✅ Exit slot created!")
