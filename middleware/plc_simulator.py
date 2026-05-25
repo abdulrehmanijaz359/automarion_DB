@@ -34,6 +34,13 @@ class PLCSimulator:
     def is_connected(self):
         return self.connected
 
+    def reset(self):
+        self.db12['gripper_status'] = GRIPPER_IDLE
+        self.db12['current_level']  = 0
+        self.db12['current_row']    = 0
+        self.db12['current_col']    = 0
+        print("🔄 Simulator reset to IDLE!")
+
     def send_command(self, action, level, row, col):
         print(f"\n📤 Simulator received command:")
         print(f"   Action={action} Level={level} Row={row} Col={col}")

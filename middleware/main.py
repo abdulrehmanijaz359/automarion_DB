@@ -32,19 +32,21 @@ class WarehouseMiddleware:
         # self.plc.connect()
 
         # Initialize modules
-        self.blocking    = BlockingLogic()
-        self.relocation  = Relocation()
-        self.executor    = CommandExecutor(self.plc)
+        self.blocking   = BlockingLogic()
+        self.relocation = Relocation()
+        self.executor   = CommandExecutor(self.plc)
         print("✅ All modules loaded!")
 
-        # Clear old pending commands on startup
+        # Only cancel commands older than 5 minutes
+        # These are stuck from a previous crash
         self.cursor.execute("""
             UPDATE commands
             SET status='cancelled'
             WHERE status='pending'
+            AND created_at < NOW() - INTERVAL 5 MINUTE
         """)
         self.conn.commit()
-        print("🧹 Cleared old pending commands!")
+        print("🧹 Cleared stuck old commands!")
 
         print("=" * 60)
         print("👂 Listening for commands...")

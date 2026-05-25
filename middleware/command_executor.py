@@ -16,6 +16,10 @@ class CommandExecutor:
         )
         self.cursor = self.conn.cursor(dictionary=True)
 
+    # ─────────────────────────────────────
+    # HELPERS
+    # ─────────────────────────────────────
+
     def log(self, command_id, level, message):
         self.cursor.execute("""
             INSERT INTO log (command_id, level, message)
@@ -34,7 +38,8 @@ class CommandExecutor:
 
     def update_slot(self, level, row, col, status,
                     item_name=None, is_temporary=False,
-                    orig_level=None, orig_row=None, orig_col=None):
+                    orig_level=None, orig_row=None,
+                    orig_col=None):
         self.cursor.execute("""
             UPDATE slots SET
                 status=%s,
@@ -60,10 +65,23 @@ class CommandExecutor:
         result = self.cursor.fetchone()
         return result['item_name'] if result else None
 
+    def mark_command_failed(self, command_id):
+        self.cursor.execute("""
+            UPDATE commands
+            SET status='failed', completed_at=%s
+            WHERE id=%s
+        """, (datetime.now(), command_id))
+        self.conn.commit()
+
+    # ─────────────────────────────────────
+    # MAIN EXECUTE FUNCTION
+    # ─────────────────────────────────────
+
     def execute_sequence(self, command_id):
         print(f"\n🚀 Executing command sequence {command_id}...")
         print("=" * 60)
 
+        # Get all pending steps
         self.cursor.execute("""
             SELECT * FROM command_sequence
             WHERE command_id=%s AND status='pending'
@@ -73,36 +91,61 @@ class CommandExecutor:
 
         if not steps:
             print("❌ No pending steps found!")
+            self.plc.reset()
             return False
 
-        print(f"   Found {len(steps)} steps to execute\n")
+        total_steps  = len(steps)
         current_item = None
+
+        print(f"   Found {total_steps} steps to execute\n")
 
         for step in steps:
             print(f"\n--- Step {step['step_number']} "
-                  f"of {len(steps)}: {step['action']} ---")
+                  f"of {total_steps}: {step['action']} ---")
 
+            # ─────────────────────────────
+            # HOME
+            # ─────────────────────────────
             if step['action'] == 'HOME':
+
                 success = self.plc.send_home()
+
                 if not success:
                     self.update_step(step['id'], 'error')
-                    self.log(command_id, 'ERROR', 'HOME command failed!')
+                    self.log(command_id, 'ERROR',
+                        'HOME command failed!')
+                    self.mark_command_failed(command_id)
+                    self.plc.reset()
                     return False
+
+                # Reset gripper to idle after home
                 self.plc.db12['gripper_status'] = GRIPPER_IDLE
                 self.update_step(step['id'], 'completed')
-                self.log(command_id, 'INFO', 'Gripper reached HOME')
+                self.log(command_id, 'INFO',
+                    'Gripper reached HOME')
 
+            # ─────────────────────────────
+            # PICK
+            # ─────────────────────────────
             elif step['action'] == 'PICK':
+
                 level = step['from_level']
                 row   = step['from_row']
                 col   = step['from_col']
 
+                # Get item name from database
                 current_item = self.get_slot_item(level, row, col)
+
+                # Convert level to integer for PLC
                 level_int = {
-                    'A':1, 'B':2, 'C':3,
-                    'R':4, 'ENTRY':0
+                    'A'    : 1,
+                    'B'    : 2,
+                    'C'    : 3,
+                    'R'    : 4,
+                    'ENTRY': 0
                 }.get(level, 0)
 
+                # Send pick command to PLC
                 success = self.plc.send_command(
                     ACTION_RETRIEVE, level_int, row, col
                 )
@@ -111,23 +154,36 @@ class CommandExecutor:
                     self.update_step(step['id'], 'error')
                     self.log(command_id, 'ERROR',
                         f'PICK failed at {level}({row},{col})')
+                    self.mark_command_failed(command_id)
+                    self.plc.reset()
                     return False
 
+                # Update slot to empty in database
                 self.update_slot(level, row, col, 'empty')
                 self.update_step(step['id'], 'completed')
                 self.log(command_id, 'INFO',
-                    f'Picked {current_item} from {level}({row},{col})')
+                    f'Picked {current_item} '
+                    f'from {level}({row},{col})')
 
+            # ─────────────────────────────
+            # PLACE
+            # ─────────────────────────────
             elif step['action'] == 'PLACE':
+
                 level = step['to_level']
                 row   = step['to_row']
                 col   = step['to_col']
 
+                # Convert level to integer for PLC
                 level_int = {
-                    'A':1, 'B':2, 'C':3,
-                    'R':4, 'EXIT':5
+                    'A'   : 1,
+                    'B'   : 2,
+                    'C'   : 3,
+                    'R'   : 4,
+                    'EXIT': 5
                 }.get(level, 0)
 
+                # Send place command to PLC
                 success = self.plc.send_command(
                     ACTION_STORE, level_int, row, col
                 )
@@ -136,16 +192,39 @@ class CommandExecutor:
                     self.update_step(step['id'], 'error')
                     self.log(command_id, 'ERROR',
                         f'PLACE failed at {level}({row},{col})')
+                    self.mark_command_failed(command_id)
+                    self.plc.reset()
                     return False
 
-                if level not in ['EXIT']:
-                    self.update_slot(level, row, col,
-                        'occupied', current_item)
+                # Update slot in database
+                if level != 'EXIT':
+                    self.update_slot(
+                        level, row, col,
+                        'occupied', current_item
+                    )
 
                 self.update_step(step['id'], 'completed')
                 self.log(command_id, 'INFO',
-                    f'Placed {current_item} at {level}({row},{col})')
+                    f'Placed {current_item} '
+                    f'at {level}({row},{col})')
 
+            # ─────────────────────────────
+            # UNKNOWN ACTION
+            # ─────────────────────────────
+            else:
+                print(f"❌ Unknown action: {step['action']}")
+                self.update_step(step['id'], 'error')
+                self.log(command_id, 'ERROR',
+                    f"Unknown action: {step['action']}")
+                self.mark_command_failed(command_id)
+                self.plc.reset()
+                return False
+
+        # ─────────────────────────────
+        # ALL STEPS DONE
+        # ─────────────────────────────
+
+        # Mark command as completed
         self.cursor.execute("""
             UPDATE commands
             SET status='completed', completed_at=%s
@@ -153,6 +232,10 @@ class CommandExecutor:
         """, (datetime.now(), command_id))
         self.conn.commit()
 
+        # Reset gripper for next command
+        self.plc.reset()
+
         print("\n" + "=" * 60)
         print("🎉 Command sequence completed successfully!")
+        print("   Ready for next command!\n")
         return True
