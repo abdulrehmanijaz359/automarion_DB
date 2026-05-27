@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard — Warehouse Management System</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- HEADER -->
+    <header>
+        <div class="header-left">
+            <h1>🏭 Warehouse Management System</h1>
+            <span id="server-time">--:--:--</span>
+        </div>
+        <div class="header-right">
+            <div class="status-badge">
+                <span class="dot"></span> System Online
+            </div>
+        </div>
+    </header>
+
+    <!-- NAVIGATION -->
+    <nav>
+        <a href="index.html">📦 Warehouse Grid</a>
+        <a href="dashboard.html" class="active">📊 Dashboard</a>
+        <a href="history.html">📋 History</a>
+        <a href="logs.html">📝 Logs</a>
+    </nav>
+
+    <!-- MAIN -->
+    <main>
+
+        <!-- SUMMARY CARDS -->
+        <div class="summary-cards">
+            <div class="card">
+                <div class="card-number" id="total-slots">-</div>
+                <div class="card-label">Total Slots</div>
+            </div>
+            <div class="card">
+                <div class="card-number occupied" id="occupied-slots">-</div>
+                <div class="card-label">Occupied</div>
+            </div>
+            <div class="card">
+                <div class="card-number empty" id="empty-slots">-</div>
+                <div class="card-label">Empty</div>
+            </div>
+            <div class="card">
+                <div class="card-number reserved" id="reserved-slots">-</div>
+                <div class="card-label">Reserved Free</div>
+            </div>
+            <div class="card">
+                <div class="card-number pending" id="pending-commands">-</div>
+                <div class="card-label">Pending Commands</div>
+            </div>
+        </div>
+
+        <div class="content-grid">
+
+            <!-- WAREHOUSE OVERVIEW -->
+            <div class="section">
+                <h2>Warehouse Overview</h2>
+                <p class="section-desc">Current state of all 27 storage slots</p>
+
+                <!-- LEVEL C -->
+                <div class="level-container">
+                    <div class="level-label">Level C — 2nd Floor (Top)</div>
+                    <div class="dash-grid" id="dash-grid-C"></div>
+                </div>
+
+                <!-- LEVEL B -->
+                <div class="level-container">
+                    <div class="level-label">Level B — 1st Floor (Middle)</div>
+                    <div class="dash-grid" id="dash-grid-B"></div>
+                </div>
+
+                <!-- LEVEL A -->
+                <div class="level-container">
+                    <div class="level-label">Level A — Ground Floor</div>
+                    <div class="dash-grid" id="dash-grid-A"></div>
+                </div>
+            </div>
+
+            <!-- RIGHT COLUMN -->
+            <div style="display:flex; flex-direction:column; gap:24px;">
+
+                <!-- ENTRY AND EXIT -->
+                <div class="section">
+                    <h2>Entry / Exit</h2>
+                    <div class="entry-exit">
+                        <div class="special-slot entry-slot">
+                            <div class="special-label">🔵 ENTRY</div>
+                            <div class="special-item" id="entry-item">Empty</div>
+                        </div>
+                        <div class="special-slot exit-slot">
+                            <div class="special-label">🟣 EXIT</div>
+                            <div class="special-item" id="exit-item">Empty</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- RESERVED SLOTS -->
+                <div class="section">
+                    <h2>Reserved Slots</h2>
+                    <p class="section-desc">Always kept free for relocation</p>
+                    <div id="reserved-list">Loading...</div>
+                </div>
+
+                <!-- ACTIVE ALARMS -->
+                <div class="section">
+                    <h2>🚨 Active Alarms</h2>
+                    <div id="alarms-list">Loading...</div>
+                </div>
+
+                <!-- LATEST COMMANDS -->
+                <div class="section">
+                    <h2>Latest Commands</h2>
+                    <div id="latest-commands">Loading...</div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API = 'http://localhost:5000'
+
+        async function fetchData(url) {
+            try {
+                const res = await fetch(url)
+                return await res.json()
+            } catch (err) {
+                return null
+            }
+        }
+
+        async function updateSummary() {
+            const data = await fetchData(`${API}/api/summary`)
+            if (!data) return
+            document.getElementById('total-slots').textContent    = data.total_slots
+            document.getElementById('occupied-slots').textContent = data.occupied_slots
+            document.getElementById('empty-slots').textContent    = data.empty_slots
+            document.getElementById('reserved-slots').textContent = data.reserved_available
+            document.getElementById('pending-commands').textContent = data.pending_commands
+            document.getElementById('server-time').textContent    = data.server_time
+            document.getElementById('entry-item').textContent     = data.entry_slot?.item_name || 'Empty'
+            document.getElementById('exit-item').textContent      = data.exit_slot?.item_name  || 'Empty'
+        }
+
+        async function updateGrid() {
+            const slots = await fetchData(`${API}/api/slots/warehouse`)
+            if (!slots) return
+
+            const levels = { A: [], B: [], C: [] }
+            slots.forEach(s => {
+                if (levels[s.level]) levels[s.level].push(s)
+            })
+
+            Object.keys(levels).forEach(level => {
+                const grid = document.getElementById(`dash-grid-${level}`)
+                if (!grid) return
+                grid.innerHTML = ''
+                const sorted = levels[level].sort((a,b) =>
+                    a.row_num - b.row_num || a.col_num - b.col_num)
+                sorted.forEach(slot => {
+                    const div = document.createElement('div')
+                    div.className = `dash-slot ${slot.status}`
+                    div.innerHTML = `
+                        <div class="slot-name">
+                            ${slot.level}(${slot.row_num},${slot.col_num})
+                        </div>
+                        <div class="slot-item">
+                            ${slot.item_name || '—'}
+                        </div>
+                    `
+                    grid.appendChild(div)
+                })
+            })
+        }
+
+        async function updateReserved() {
+            const slots = await fetchData(`${API}/api/slots/reserved`)
+            if (!slots) return
+            document.getElementById('reserved-list').innerHTML =
+                slots.map(s => `
+                    <div class="reserved-row">
+                        <span class="reserved-name">Reserved ${s.row_num}</span>
+                        <span class="reserved-badge ${s.status === 'empty' ? 'badge-empty' : 'badge-occupied'}">
+                            ${s.status === 'empty' ? '✅ Free' : '🔴 In use'}
+                        </span>
+                    </div>
+                `).join('')
+        }
+
+        async function updateAlarms() {
+            const alarms = await fetchData(`${API}/api/alarms/active`)
+            if (!alarms) return
+            const el = document.getElementById('alarms-list')
+            if (alarms.length === 0) {
+                el.innerHTML = '<p style="color:#16a34a; font-size:13px;">No active alarms ✅</p>'
+            } else {
+                el.innerHTML = alarms.map(a => `
+                    <div class="reserved-row">
+                        <span class="reserved-name">${a.alarm_type}</span>
+                        <span class="reserved-badge badge-occupied">${a.severity}</span>
+                    </div>
+                `).join('')
+            }
+        }
+
+        async function updateLatestCommands() {
+            const commands = await fetchData(`${API}/api/commands`)
+            if (!commands) return
+            const latest = commands.slice(0, 5)
+            document.getElementById('latest-commands').innerHTML =
+                latest.map(c => `
+                    <div class="reserved-row">
+                        <span class="reserved-name">
+                            ${c.command_type?.toUpperCase()}
+                            ${c.target_level}(${c.target_row},${c.target_col})
+                            ${c.item_name ? '— ' + c.item_name : ''}
+                        </span>
+                        <span class="reserved-badge
+                            ${c.status === 'completed' ? 'badge-empty' :
+                              c.status === 'rejected'  ? 'badge-occupied' :
+                              'badge-pending'}">
+                            ${c.status}
+                        </span>
+                    </div>
+                `).join('')
+        }
+
+        async function refreshAll() {
+            await updateSummary()
+            await updateGrid()
+            await updateReserved()
+            await updateAlarms()
+            await updateLatestCommands()
+        }
+
+        refreshAll()
+        setInterval(refreshAll, 3000)
+    </script>
+
+    <style>
+        .dash-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .dash-slot {
+            border-radius: 8px;
+            padding: 10px 8px;
+            text-align: center;
+            min-height: 60px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 3px;
+        }
+
+        .dash-slot.empty {
+            background: #dcfce7;
+            border: 1px solid #86efac;
+        }
+
+        .dash-slot.occupied {
+            background: #fee2e2;
+            border: 1px solid #fca5a5;
+        }
+
+        .badge-pending {
+            background: #fef9c3;
+            color: #854d0e;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+    </style>
+</body>
+</html>

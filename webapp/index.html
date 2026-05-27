@@ -11,15 +11,28 @@
     <!-- HEADER -->
     <header>
         <div class="header-left">
-            <h1>🏭 Warehouse Management System</h1>
+            <h1>Warehouse Management System</h1>
             <span id="server-time">--:--:--</span>
         </div>
         <div class="header-right">
-            <div class="status-badge" id="system-status">
+            <div class="status-badge">
                 <span class="dot"></span> System Online
             </div>
         </div>
     </header>
+
+    <!-- ALARM BANNER -->
+    <div id="alarm-banner" style="display:none">
+        <div class="alarm-banner-content">
+            <span>🚨</span>
+            <span id="alarm-banner-text">
+                System alarm detected!
+            </span>
+            <button onclick="resolveAlarms()">
+                Resolve All
+            </button>
+        </div>
+    </div>
 
     <!-- NAVIGATION -->
     <nav>
@@ -29,7 +42,7 @@
         <a href="logs.html">📝 Logs</a>
     </nav>
 
-    <!-- MAIN CONTENT -->
+    <!-- MAIN -->
     <main>
 
         <!-- SUMMARY CARDS -->
@@ -39,19 +52,23 @@
                 <div class="card-label">Total Slots</div>
             </div>
             <div class="card">
-                <div class="card-number occupied" id="occupied-slots">-</div>
+                <div class="card-number occupied"
+                     id="occupied-slots">-</div>
                 <div class="card-label">Occupied</div>
             </div>
             <div class="card">
-                <div class="card-number empty" id="empty-slots">-</div>
+                <div class="card-number empty"
+                     id="empty-slots">-</div>
                 <div class="card-label">Empty</div>
             </div>
             <div class="card">
-                <div class="card-number reserved" id="reserved-slots">-</div>
+                <div class="card-number reserved"
+                     id="reserved-slots">-</div>
                 <div class="card-label">Reserved Free</div>
             </div>
             <div class="card">
-                <div class="card-number pending" id="pending-commands">-</div>
+                <div class="card-number pending"
+                     id="pending-commands">-</div>
                 <div class="card-label">Pending Commands</div>
             </div>
         </div>
@@ -61,32 +78,55 @@
             <!-- WAREHOUSE GRID -->
             <div class="section">
                 <h2>Warehouse Grid</h2>
-                <p class="section-desc">Click any slot to select it for a command</p>
+                <p class="section-desc">
+                    Click any slot to select it for a command
+                </p>
 
                 <!-- LEGEND -->
                 <div class="legend">
-                    <span><span class="dot-legend empty-dot"></span> Empty</span>
-                    <span><span class="dot-legend occupied-dot"></span> Occupied</span>
-                    <span><span class="dot-legend reserved-dot"></span> Reserved</span>
-                    <span><span class="dot-legend entry-dot"></span> Entry</span>
-                    <span><span class="dot-legend exit-dot"></span> Exit</span>
+                    <span>
+                        <span class="dot-legend empty-dot"></span>
+                        Empty
+                    </span>
+                    <span>
+                        <span class="dot-legend occupied-dot"></span>
+                        Occupied
+                    </span>
+                    <span>
+                        <span class="dot-legend reserved-dot"></span>
+                        Reserved
+                    </span>
+                    <span>
+                        <span class="dot-legend entry-dot"></span>
+                        Entry
+                    </span>
+                    <span>
+                        <span class="dot-legend exit-dot"></span>
+                        Exit
+                    </span>
                 </div>
 
-                <!-- LEVEL C (TOP) -->
+                <!-- LEVEL C -->
                 <div class="level-container">
-                    <div class="level-label">Level C — 2nd Floor (Top)</div>
+                    <div class="level-label">
+                        Level C — 2nd Floor (Top)
+                    </div>
                     <div class="grid" id="grid-C"></div>
                 </div>
 
-                <!-- LEVEL B (MIDDLE) -->
+                <!-- LEVEL B -->
                 <div class="level-container">
-                    <div class="level-label">Level B — 1st Floor (Middle)</div>
+                    <div class="level-label">
+                        Level B — 1st Floor (Middle)
+                    </div>
                     <div class="grid" id="grid-B"></div>
                 </div>
 
-                <!-- LEVEL A (GROUND) -->
+                <!-- LEVEL A -->
                 <div class="level-container">
-                    <div class="level-label">Level A — Ground Floor</div>
+                    <div class="level-label">
+                        Level A — Ground Floor
+                    </div>
                     <div class="grid" id="grid-A"></div>
                 </div>
 
@@ -94,11 +134,13 @@
                 <div class="entry-exit">
                     <div class="special-slot entry-slot">
                         <div class="special-label">🔵 ENTRY</div>
-                        <div class="special-item" id="entry-item">Empty</div>
+                        <div class="special-item"
+                             id="entry-item">Empty</div>
                     </div>
                     <div class="special-slot exit-slot">
                         <div class="special-label">🟣 EXIT</div>
-                        <div class="special-item" id="exit-item">Empty</div>
+                        <div class="special-item"
+                             id="exit-item">Empty</div>
                     </div>
                 </div>
             </div>
@@ -110,18 +152,21 @@
                 <!-- SELECTED SLOT -->
                 <div class="selected-slot" id="selected-slot">
                     <p>No slot selected</p>
-                    <p class="hint">Click a slot on the grid to select it</p>
+                    <p class="hint">
+                        Click a slot on the grid to select it
+                    </p>
                 </div>
 
                 <!-- COMMAND BUTTONS -->
-                <div class="command-buttons" id="command-buttons" style="display:none">
+                <div class="command-buttons"
+                     id="command-buttons"
+                     style="display:none">
 
-                    <!-- RETRIEVE -->
-                    <button class="btn btn-retrieve" id="btn-retrieve">
+                    <button class="btn btn-retrieve"
+                            id="btn-retrieve">
                         📤 Retrieve Item
                     </button>
 
-                    <!-- STORE -->
                     <div class="store-form">
                         <input
                             type="text"
@@ -129,40 +174,52 @@
                             placeholder="Enter item name..."
                             maxlength="50"
                         />
-                        <button class="btn btn-store" id="btn-store">
+                        <button class="btn btn-store"
+                                id="btn-store">
                             📥 Store Item
                         </button>
                     </div>
 
-                    <button class="btn btn-cancel" id="btn-cancel">
-                        ✕ Cancel
+                    <button class="btn btn-cancel"
+                            id="btn-cancel">
+                        Cancel
                     </button>
                 </div>
 
                 <!-- RESULT MESSAGE -->
-                <div class="result-message" id="result-message"></div>
+                <div class="result-message"
+                     id="result-message"></div>
 
                 <!-- GRIPPER STATUS -->
                 <div class="gripper-status">
                     <h3>Gripper Status</h3>
                     <div class="status-row">
                         <span class="status-label">Status:</span>
-                        <span class="status-value" id="gripper-status">Idle</span>
+                        <span class="status-value"
+                              id="gripper-status">Idle</span>
                     </div>
                     <div class="status-row">
-                        <span class="status-label">Last command:</span>
-                        <span class="status-value" id="last-command">None</span>
+                        <span class="status-label">
+                            Last command:
+                        </span>
+                        <span class="status-value"
+                              id="last-command">None</span>
                     </div>
                     <div class="status-row">
-                        <span class="status-label">Last updated:</span>
-                        <span class="status-value" id="last-updated">--:--:--</span>
+                        <span class="status-label">
+                            Last updated:
+                        </span>
+                        <span class="status-value"
+                              id="last-updated">--:--:--</span>
                     </div>
                 </div>
 
                 <!-- RESERVED SLOTS -->
                 <div class="reserved-status">
                     <h3>Reserved Slots</h3>
-                    <div id="reserved-slots-list">Loading...</div>
+                    <div id="reserved-slots-list">
+                        Loading...
+                    </div>
                 </div>
 
             </div>

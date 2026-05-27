@@ -21,7 +21,7 @@ def get_db():
 
 @app.route('/api/slots', methods=['GET'])
 def get_slots():
-    conn = get_db()
+    conn   = get_db()
     cursor = conn.cursor(dictionary=True)
     cursor.execute("""
         SELECT * FROM slots
@@ -33,7 +33,7 @@ def get_slots():
 
 @app.route('/api/slots/warehouse', methods=['GET'])
 def get_warehouse_slots():
-    conn = get_db()
+    conn   = get_db()
     cursor = conn.cursor(dictionary=True)
     cursor.execute("""
         SELECT * FROM slots WHERE slot_type='normal'
@@ -45,7 +45,7 @@ def get_warehouse_slots():
 
 @app.route('/api/slots/level/<level>', methods=['GET'])
 def get_slots_by_level(level):
-    conn = get_db()
+    conn   = get_db()
     cursor = conn.cursor(dictionary=True)
     cursor.execute("""
         SELECT * FROM slots WHERE level=%s
@@ -55,9 +55,10 @@ def get_slots_by_level(level):
     conn.close()
     return jsonify(data)
 
-@app.route('/api/slots/<level>/<int:row>/<int:col>', methods=['GET'])
+@app.route('/api/slots/<level>/<int:row>/<int:col>',
+           methods=['GET'])
 def get_slot(level, row, col):
-    conn = get_db()
+    conn   = get_db()
     cursor = conn.cursor(dictionary=True)
     cursor.execute("""
         SELECT * FROM slots
@@ -71,7 +72,7 @@ def get_slot(level, row, col):
 
 @app.route('/api/slots/reserved', methods=['GET'])
 def get_reserved_slots():
-    conn = get_db()
+    conn   = get_db()
     cursor = conn.cursor(dictionary=True)
     cursor.execute("""
         SELECT * FROM slots WHERE slot_type='reserved'
@@ -82,18 +83,22 @@ def get_reserved_slots():
 
 @app.route('/api/slots/entry', methods=['GET'])
 def get_entry_slot():
-    conn = get_db()
+    conn   = get_db()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM slots WHERE slot_type='entry'")
+    cursor.execute("""
+        SELECT * FROM slots WHERE slot_type='entry'
+    """)
     data = cursor.fetchone()
     conn.close()
     return jsonify(data)
 
 @app.route('/api/slots/exit', methods=['GET'])
 def get_exit_slot():
-    conn = get_db()
+    conn   = get_db()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM slots WHERE slot_type='exit'")
+    cursor.execute("""
+        SELECT * FROM slots WHERE slot_type='exit'
+    """)
     data = cursor.fetchone()
     conn.close()
     return jsonify(data)
@@ -104,7 +109,7 @@ def get_exit_slot():
 
 @app.route('/api/commands', methods=['GET'])
 def get_commands():
-    conn = get_db()
+    conn   = get_db()
     cursor = conn.cursor(dictionary=True)
     cursor.execute("""
         SELECT * FROM commands ORDER BY created_at DESC
@@ -115,7 +120,7 @@ def get_commands():
 
 @app.route('/api/commands/pending', methods=['GET'])
 def get_pending_commands():
-    conn = get_db()
+    conn   = get_db()
     cursor = conn.cursor(dictionary=True)
     cursor.execute("""
         SELECT * FROM commands
@@ -126,9 +131,10 @@ def get_pending_commands():
     conn.close()
     return jsonify(data)
 
-@app.route('/api/commands/<int:command_id>', methods=['GET'])
+@app.route('/api/commands/<int:command_id>',
+           methods=['GET'])
 def get_command(command_id):
-    conn = get_db()
+    conn   = get_db()
     cursor = conn.cursor(dictionary=True)
     cursor.execute("""
         SELECT * FROM commands WHERE id=%s
@@ -150,28 +156,33 @@ def send_retrieve():
     col   = data.get('col')
 
     if not level or row is None or col is None:
-        return jsonify({'error': 'Missing level, row or col'}), 400
+        return jsonify(
+            {'error': 'Missing level, row or col'}), 400
     if level not in ['A', 'B', 'C']:
-        return jsonify({'error': 'Level must be A, B or C'}), 400
+        return jsonify(
+            {'error': 'Level must be A, B or C'}), 400
     if row not in [1,2,3] or col not in [1,2,3]:
-        return jsonify({'error': 'Row and col must be 1, 2 or 3'}), 400
+        return jsonify(
+            {'error': 'Row and col must be 1, 2 or 3'}), 400
 
-    conn = get_db()
+    conn   = get_db()
     cursor = conn.cursor(dictionary=True)
     cursor.execute("""
         INSERT INTO commands
-        (command_type, target_level, target_row, target_col, status)
+        (command_type, target_level, target_row,
+         target_col, status)
         VALUES ('retrieve', %s, %s, %s, 'pending')
     """, (level, row, col))
     conn.commit()
     command_id = cursor.lastrowid
     conn.close()
 
-    print(f"📬 Retrieve command: {level}({row},{col})")
+    print(f"Retrieve command: {level}({row},{col})")
     return jsonify({
         'success'   : True,
         'command_id': command_id,
-        'message'   : f'Retrieve command sent for {level}({row},{col})',
+        'message'   : f'Retrieve command sent for '
+                      f'{level}({row},{col})',
         'status'    : 'pending'
     })
 
@@ -187,15 +198,18 @@ def send_store():
     item_name = data.get('item_name', '')
 
     if not level or row is None or col is None:
-        return jsonify({'error': 'Missing level, row or col'}), 400
+        return jsonify(
+            {'error': 'Missing level, row or col'}), 400
     if not item_name:
         return jsonify({'error': 'Missing item_name'}), 400
     if level not in ['A', 'B', 'C']:
-        return jsonify({'error': 'Level must be A, B or C'}), 400
+        return jsonify(
+            {'error': 'Level must be A, B or C'}), 400
     if row not in [1,2,3] or col not in [1,2,3]:
-        return jsonify({'error': 'Row and col must be 1, 2 or 3'}), 400
+        return jsonify(
+            {'error': 'Row and col must be 1, 2 or 3'}), 400
 
-    conn = get_db()
+    conn   = get_db()
     cursor = conn.cursor(dictionary=True)
     cursor.execute("""
         INSERT INTO commands
@@ -207,17 +221,19 @@ def send_store():
     command_id = cursor.lastrowid
     conn.close()
 
-    print(f"📬 Store command: {item_name} → {level}({row},{col})")
+    print(f"Store command: {item_name} -> {level}({row},{col})")
     return jsonify({
         'success'   : True,
         'command_id': command_id,
-        'message'   : f'Store command sent for {item_name} at {level}({row},{col})',
+        'message'   : f'Store command sent for '
+                      f'{item_name} at {level}({row},{col})',
         'status'    : 'pending'
     })
 
-@app.route('/api/commands/<int:command_id>/sequence', methods=['GET'])
+@app.route('/api/commands/<int:command_id>/sequence',
+           methods=['GET'])
 def get_sequence(command_id):
-    conn = get_db()
+    conn   = get_db()
     cursor = conn.cursor(dictionary=True)
     cursor.execute("""
         SELECT * FROM command_sequence
@@ -229,12 +245,12 @@ def get_sequence(command_id):
     return jsonify(data)
 
 # ─────────────────────────────────────
-# LOGS AND ALARMS
+# LOGS
 # ─────────────────────────────────────
 
 @app.route('/api/logs', methods=['GET'])
 def get_logs():
-    conn = get_db()
+    conn   = get_db()
     cursor = conn.cursor(dictionary=True)
     cursor.execute("""
         SELECT * FROM log
@@ -244,9 +260,13 @@ def get_logs():
     conn.close()
     return jsonify(data)
 
+# ─────────────────────────────────────
+# ALARMS
+# ─────────────────────────────────────
+
 @app.route('/api/alarms', methods=['GET'])
 def get_alarms():
-    conn = get_db()
+    conn   = get_db()
     cursor = conn.cursor(dictionary=True)
     cursor.execute("""
         SELECT * FROM alarms ORDER BY created_at DESC
@@ -257,7 +277,7 @@ def get_alarms():
 
 @app.route('/api/alarms/active', methods=['GET'])
 def get_active_alarms():
-    conn = get_db()
+    conn   = get_db()
     cursor = conn.cursor(dictionary=True)
     cursor.execute("""
         SELECT * FROM alarms
@@ -268,13 +288,30 @@ def get_active_alarms():
     conn.close()
     return jsonify(data)
 
+@app.route('/api/alarms/<int:alarm_id>/resolve',
+           methods=['POST'])
+def resolve_alarm(alarm_id):
+    conn   = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE alarms
+        SET resolved=TRUE, resolved_at=NOW()
+        WHERE id=%s
+    """, (alarm_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({
+        'success': True,
+        'message': 'Alarm resolved'
+    })
+
 # ─────────────────────────────────────
 # SUMMARY
 # ─────────────────────────────────────
 
 @app.route('/api/summary', methods=['GET'])
 def get_summary():
-    conn = get_db()
+    conn   = get_db()
     cursor = conn.cursor(dictionary=True)
 
     cursor.execute("""
@@ -313,10 +350,14 @@ def get_summary():
     """)
     active_alarms = cursor.fetchone()['count']
 
-    cursor.execute("SELECT * FROM slots WHERE slot_type='entry'")
+    cursor.execute("""
+        SELECT * FROM slots WHERE slot_type='entry'
+    """)
     entry = cursor.fetchone()
 
-    cursor.execute("SELECT * FROM slots WHERE slot_type='exit'")
+    cursor.execute("""
+        SELECT * FROM slots WHERE slot_type='exit'
+    """)
     exit_slot = cursor.fetchone()
 
     conn.close()
@@ -329,7 +370,8 @@ def get_summary():
         'active_alarms'     : active_alarms,
         'entry_slot'        : entry,
         'exit_slot'         : exit_slot,
-        'server_time'       : datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        'server_time'       : datetime.now().strftime(
+            '%Y-%m-%d %H:%M:%S')
     })
 
 # ─────────────────────────────────────
@@ -338,7 +380,7 @@ def get_summary():
 
 if __name__ == '__main__':
     print("=" * 60)
-    print("   🌐 WAREHOUSE FLASK API STARTING...")
+    print("   WAREHOUSE FLASK API STARTING...")
     print("=" * 60)
     print("   Endpoints:")
     print("   GET  /api/slots")
@@ -355,6 +397,7 @@ if __name__ == '__main__':
     print("   GET  /api/logs")
     print("   GET  /api/alarms")
     print("   GET  /api/alarms/active")
+    print("   POST /api/alarms/<id>/resolve")
     print("   GET  /api/summary")
     print("=" * 60)
     app.run(debug=True, host='0.0.0.0', port=5000)

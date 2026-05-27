@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>History — Warehouse Management System</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- HEADER -->
+    <header>
+        <div class="header-left">
+            <h1>🏭 Warehouse Management System</h1>
+            <span id="server-time">--:--:--</span>
+        </div>
+        <div class="header-right">
+            <div class="status-badge">
+                <span class="dot"></span> System Online
+            </div>
+        </div>
+    </header>
+
+    <!-- NAVIGATION -->
+    <nav>
+        <a href="index.html">📦 Warehouse Grid</a>
+        <a href="dashboard.html">📊 Dashboard</a>
+        <a href="history.html" class="active">📋 History</a>
+        <a href="logs.html">📝 Logs</a>
+    </nav>
+
+    <!-- MAIN -->
+    <main>
+
+        <div class="section">
+            <h2>Command History</h2>
+            <p class="section-desc">All commands sent to the warehouse system</p>
+
+            <!-- FILTER BUTTONS -->
+            <div class="filter-buttons">
+                <button class="filter-btn active" onclick="filterCommands('all')">All</button>
+                <button class="filter-btn" onclick="filterCommands('completed')">✅ Completed</button>
+                <button class="filter-btn" onclick="filterCommands('rejected')">❌ Rejected</button>
+                <button class="filter-btn" onclick="filterCommands('pending')">⏳ Pending</button>
+                <button class="filter-btn" onclick="filterCommands('cancelled')">🚫 Cancelled</button>
+            </div>
+
+            <!-- TABLE -->
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Type</th>
+                            <th>Target</th>
+                            <th>Item</th>
+                            <th>Status</th>
+                            <th>Reason</th>
+                            <th>Created</th>
+                            <th>Completed</th>
+                        </tr>
+                    </thead>
+                    <tbody id="commands-tbody">
+                        <tr>
+                            <td colspan="8" style="text-align:center">
+                                Loading...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="table-count" id="table-count"></p>
+        </div>
+
+    </main>
+
+    <script>
+        const API = 'http://localhost:5000'
+        let allCommands = []
+        let currentFilter = 'all'
+
+        async function loadCommands() {
+            try {
+                const res = await fetch(`${API}/api/commands`)
+                allCommands = await res.json()
+                renderCommands()
+                document.getElementById('server-time').textContent =
+                    new Date().toLocaleTimeString()
+            } catch (err) {
+                console.error(err)
+            }
+        }
+
+        function filterCommands(filter) {
+            currentFilter = filter
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active')
+            })
+            event.target.classList.add('active')
+            renderCommands()
+        }
+
+        function getStatusBadge(status) {
+            const map = {
+                'completed' : '<span class="table-badge badge-completed">✅ Completed</span>',
+                'rejected'  : '<span class="table-badge badge-rejected">❌ Rejected</span>',
+                'pending'   : '<span class="table-badge badge-pending-t">⏳ Pending</span>',
+                'approved'  : '<span class="table-badge badge-approved">👍 Approved</span>',
+                'cancelled' : '<span class="table-badge badge-cancelled">🚫 Cancelled</span>',
+                'failed'    : '<span class="table-badge badge-rejected">💥 Failed</span>'
+            }
+            return map[status] || status
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '—'
+            const d = new Date(dateStr)
+            return d.toLocaleDateString() + ' ' +
+                   d.toLocaleTimeString()
+        }
+
+        function renderCommands() {
+            const filtered = currentFilter === 'all'
+                ? allCommands
+                : allCommands.filter(c => c.status === currentFilter)
+
+            const tbody = document.getElementById('commands-tbody')
+            const count = document.getElementById('table-count')
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" style="text-align:center; color:#888">
+                            No commands found
+                        </td>
+                    </tr>`
+                count.textContent = ''
+                return
+            }
+
+            tbody.innerHTML = filtered.map(c => `
+                <tr>
+                    <td>#${c.id}</td>
+                    <td>
+                        <span class="type-badge ${c.command_type}">
+                            ${c.command_type === 'store' ? '📥' : '📤'}
+                            ${c.command_type?.toUpperCase()}
+                        </span>
+                    </td>
+                    <td>
+                        <strong>
+                            ${c.target_level}(${c.target_row},${c.target_col})
+                        </strong>
+                    </td>
+                    <td>${c.item_name || '—'}</td>
+                    <td>${getStatusBadge(c.status)}</td>
+                    <td style="color:#dc2626; font-size:12px">
+                        ${c.reject_reason || '—'}
+                    </td>
+                    <td style="font-size:12px">${formatDate(c.created_at)}</td>
+                    <td style="font-size:12px">${formatDate(c.completed_at)}</td>
+                </tr>
+            `).join('')
+
+            count.textContent = `Showing ${filtered.length} of ${allCommands.length} commands`
+        }
+
+        loadCommands()
+        setInterval(loadCommands, 3000)
+    </script>
+
+    <style>
+        .filter-buttons {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 8px 16px;
+            border: 1px solid #e5e7eb;
+            border-radius: 20px;
+            background: white;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: #374151;
+            transition: all 0.2s;
+        }
+
+        .filter-btn:hover { background: #f8faff; }
+
+        .filter-btn.active {
+            background: #2563eb;
+            color: white;
+            border-color: #2563eb;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        .data-table th {
+            background: #f8faff;
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: #374151;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .data-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f0f2f5;
+            color: #374151;
+        }
+
+        .data-table tr:hover { background: #f8faff; }
+
+        .data-table tr:last-child td { border-bottom: none; }
+
+        .table-badge {
+            padding: 3px 10px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-completed  { background: #dcfce7; color: #16a34a; }
+        .badge-rejected   { background: #fee2e2; color: #dc2626; }
+        .badge-pending-t  { background: #fef9c3; color: #854d0e; }
+        .badge-approved   { background: #dbeafe; color: #2563eb; }
+        .badge-cancelled  { background: #f3f4f6; color: #6b7280; }
+
+        .type-badge {
+            padding: 3px 10px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .type-badge.store    { background: #dcfce7; color: #16a34a; }
+        .type-badge.retrieve { background: #dbeafe; color: #2563eb; }
+
+        .table-count {
+            margin-top: 12px;
+            font-size: 13px;
+            color: #888;
+            text-align: right;
+        }
+    </style>
+</body>
+</html>

@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logs — Warehouse Management System</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- HEADER -->
+    <header>
+        <div class="header-left">
+            <h1>🏭 Warehouse Management System</h1>
+            <span id="server-time">--:--:--</span>
+        </div>
+        <div class="header-right">
+            <div class="status-badge">
+                <span class="dot"></span> System Online
+            </div>
+        </div>
+    </header>
+
+    <!-- NAVIGATION -->
+    <nav>
+        <a href="index.html">📦 Warehouse Grid</a>
+        <a href="dashboard.html">📊 Dashboard</a>
+        <a href="history.html">📋 History</a>
+        <a href="logs.html" class="active">📝 Logs</a>
+    </nav>
+
+    <!-- MAIN -->
+    <main>
+
+        <div class="content-grid">
+
+            <!-- SYSTEM LOGS -->
+            <div class="section">
+                <h2>System Logs</h2>
+                <p class="section-desc">
+                    Last 100 system events — auto refreshes every 3 seconds
+                </p>
+
+                <!-- FILTER -->
+                <div class="filter-buttons">
+                    <button class="filter-btn active"
+                        onclick="filterLogs('all')">All</button>
+                    <button class="filter-btn"
+                        onclick="filterLogs('INFO')">ℹ️ Info</button>
+                    <button class="filter-btn"
+                        onclick="filterLogs('ERROR')">❌ Error</button>
+                    <button class="filter-btn"
+                        onclick="filterLogs('WARNING')">⚠️ Warning</button>
+                </div>
+
+                <!-- LOG LIST -->
+                <div class="log-container" id="log-list">
+                    Loading...
+                </div>
+            </div>
+
+            <!-- RIGHT COLUMN -->
+            <div style="display:flex; flex-direction:column; gap:24px;">
+
+                <!-- ALARMS -->
+                <div class="section">
+                    <h2>🚨 All Alarms</h2>
+                    <p class="section-desc">System alarms and warnings</p>
+                    <div id="alarms-list">Loading...</div>
+                </div>
+
+                <!-- STATS -->
+                <div class="section">
+                    <h2>📊 Log Statistics</h2>
+                    <div class="reserved-row">
+                        <span class="reserved-name">Total logs</span>
+                        <span id="stat-total" class="reserved-badge badge-empty">-</span>
+                    </div>
+                    <div class="reserved-row">
+                        <span class="reserved-name">Info logs</span>
+                        <span id="stat-info" class="reserved-badge badge-empty">-</span>
+                    </div>
+                    <div class="reserved-row">
+                        <span class="reserved-name">Error logs</span>
+                        <span id="stat-error" class="reserved-badge badge-occupied">-</span>
+                    </div>
+                    <div class="reserved-row">
+                        <span class="reserved-name">Warning logs</span>
+                        <span id="stat-warning" class="reserved-badge badge-pending">-</span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API = 'http://localhost:5000'
+        let allLogs    = []
+        let currentFilter = 'all'
+
+        async function fetchData(url) {
+            try {
+                const res = await fetch(url)
+                return await res.json()
+            } catch (err) {
+                return null
+            }
+        }
+
+        async function loadLogs() {
+            const logs = await fetchData(`${API}/api/logs`)
+            if (!logs) return
+            allLogs = logs
+            renderLogs()
+            updateStats()
+            document.getElementById('server-time').textContent =
+                new Date().toLocaleTimeString()
+        }
+
+        async function loadAlarms() {
+            const alarms = await fetchData(`${API}/api/alarms`)
+            if (!alarms) return
+            const el = document.getElementById('alarms-list')
+
+            if (alarms.length === 0) {
+                el.innerHTML = `
+                    <p style="color:#16a34a; font-size:13px">
+                        No alarms recorded ✅
+                    </p>`
+                return
+            }
+
+            el.innerHTML = alarms.map(a => `
+                <div class="reserved-row">
+                    <div>
+                        <div style="font-size:13px; font-weight:600">
+                            ${a.alarm_type}
+                        </div>
+                        <div style="font-size:11px; color:#888">
+                            ${formatDate(a.created_at)}
+                        </div>
+                    </div>
+                    <span class="reserved-badge
+                        ${a.resolved ? 'badge-empty' : 'badge-occupied'}">
+                        ${a.resolved ? '✅ Resolved' : '🔴 Active'}
+                    </span>
+                </div>
+            `).join('')
+        }
+
+        function filterLogs(filter) {
+            currentFilter = filter
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active')
+            })
+            event.target.classList.add('active')
+            renderLogs()
+        }
+
+        function getLogIcon(level) {
+            const map = {
+                'INFO'   : 'ℹ️',
+                'ERROR'  : '❌',
+                'WARNING': '⚠️'
+            }
+            return map[level] || '📝'
+        }
+
+        function getLogClass(level) {
+            const map = {
+                'INFO'   : 'log-info',
+                'ERROR'  : 'log-error',
+                'WARNING': 'log-warning'
+            }
+            return map[level] || 'log-info'
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '—'
+            const d = new Date(dateStr)
+            return d.toLocaleDateString() + ' ' +
+                   d.toLocaleTimeString()
+        }
+
+        function renderLogs() {
+            const filtered = currentFilter === 'all'
+                ? allLogs
+                : allLogs.filter(l => l.level === currentFilter)
+
+            const el = document.getElementById('log-list')
+
+            if (filtered.length === 0) {
+                el.innerHTML = `
+                    <p style="color:#888; text-align:center; padding:20px">
+                        No logs found
+                    </p>`
+                return
+            }
+
+            el.innerHTML = filtered.map(log => `
+                <div class="log-entry ${getLogClass(log.level)}">
+                    <div class="log-header">
+                        <span class="log-icon">
+                            ${getLogIcon(log.level)}
+                        </span>
+                        <span class="log-level">${log.level}</span>
+                        <span class="log-command">
+                            ${log.command_id
+                                ? 'Command #' + log.command_id
+                                : 'System'}
+                        </span>
+                        <span class="log-time">
+                            ${formatDate(log.created_at)}
+                        </span>
+                    </div>
+                    <div class="log-message">${log.message}</div>
+                </div>
+            `).join('')
+        }
+
+        function updateStats() {
+            const total   = allLogs.length
+            const info    = allLogs.filter(l => l.level === 'INFO').length
+            const error   = allLogs.filter(l => l.level === 'ERROR').length
+            const warning = allLogs.filter(l => l.level === 'WARNING').length
+
+            document.getElementById('stat-total').textContent   = total
+            document.getElementById('stat-info').textContent    = info
+            document.getElementById('stat-error').textContent   = error
+            document.getElementById('stat-warning').textContent = warning
+        }
+
+        async function refreshAll() {
+            await loadLogs()
+            await loadAlarms()
+        }
+
+        refreshAll()
+        setInterval(refreshAll, 3000)
+    </script>
+
+    <style>
+        .filter-buttons {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 8px 16px;
+            border: 1px solid #e5e7eb;
+            border-radius: 20px;
+            background: white;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: #374151;
+            transition: all 0.2s;
+        }
+
+        .filter-btn:hover  { background: #f8faff; }
+        .filter-btn.active {
+            background: #2563eb;
+            color: white;
+            border-color: #2563eb;
+        }
+
+        .log-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .log-entry {
+            border-radius: 8px;
+            padding: 12px;
+            border-left: 4px solid transparent;
+        }
+
+        .log-info    {
+            background: #f0fdf4;
+            border-left-color: #16a34a;
+        }
+
+        .log-error   {
+            background: #fff5f5;
+            border-left-color: #dc2626;
+        }
+
+        .log-warning {
+            background: #fffbeb;
+            border-left-color: #d97706;
+        }
+
+        .log-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
+            flex-wrap: wrap;
+        }
+
+        .log-icon  { font-size: 14px; }
+
+        .log-level {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #374151;
+        }
+
+        .log-command {
+            font-size: 11px;
+            color: #2563eb;
+            font-weight: 600;
+        }
+
+        .log-time {
+            font-size: 11px;
+            color: #9ca3af;
+            margin-left: auto;
+        }
+
+        .log-message {
+            font-size: 13px;
+            color: #374151;
+        }
+
+        .badge-pending {
+            background: #fef9c3;
+            color: #854d0e;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+    </style>
+</body>
+</html>

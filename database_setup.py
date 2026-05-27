@@ -11,7 +11,7 @@ cursor = conn.cursor()
 
 cursor.execute(f"CREATE DATABASE IF NOT EXISTS {DB_NAME}")
 cursor.execute(f"USE {DB_NAME}")
-print("✅ Database created!")
+print("Database created!")
 
 cursor.execute("""
     CREATE TABLE IF NOT EXISTS slots (
@@ -29,7 +29,7 @@ cursor.execute("""
         last_updated   DATETIME DEFAULT NOW()
     )
 """)
-print("✅ slots table created!")
+print("slots table created!")
 
 cursor.execute("""
     CREATE TABLE IF NOT EXISTS commands (
@@ -45,7 +45,7 @@ cursor.execute("""
         completed_at  DATETIME DEFAULT NULL
     )
 """)
-print("✅ commands table created!")
+print("commands table created!")
 
 cursor.execute("""
     CREATE TABLE IF NOT EXISTS command_sequence (
@@ -64,7 +64,7 @@ cursor.execute("""
         completed_at DATETIME DEFAULT NULL
     )
 """)
-print("✅ command_sequence table created!")
+print("command_sequence table created!")
 
 cursor.execute("""
     CREATE TABLE IF NOT EXISTS log (
@@ -75,7 +75,7 @@ cursor.execute("""
         created_at DATETIME DEFAULT NOW()
     )
 """)
-print("✅ log table created!")
+print("log table created!")
 
 cursor.execute("""
     CREATE TABLE IF NOT EXISTS alarms (
@@ -88,8 +88,8 @@ cursor.execute("""
         resolved_at DATETIME DEFAULT NULL
     )
 """)
-print("✅ alarms table created!")
+print("alarms table created!")
 
 conn.commit()
 conn.close()
-print("\n🎉 All tables created!")
+print("\nAll tables created!")

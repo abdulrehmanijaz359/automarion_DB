@@ -15,6 +15,47 @@ body {
 }
 
 /* ─────────────────────────────────────
+   ALARM BANNER
+───────────────────────────────────── */
+#alarm-banner {
+    background: #dc2626;
+    color: white;
+    padding: 12px 30px;
+    animation: flash 1s infinite;
+}
+
+.alarm-banner-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    max-width: 1400px;
+    margin: 0 auto;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.alarm-banner-content button {
+    margin-left: auto;
+    background: white;
+    color: #dc2626;
+    border: none;
+    padding: 6px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.alarm-banner-content button:hover {
+    background: #fee2e2;
+}
+
+@keyframes flash {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.85; }
+}
+
+/* ─────────────────────────────────────
    HEADER
 ───────────────────────────────────── */
 header {
@@ -63,7 +104,7 @@ header span {
 
 @keyframes pulse {
     0%, 100% { opacity: 1; }
-    50% { opacity: 0.3; }
+    50%       { opacity: 0.3; }
 }
 
 /* ─────────────────────────────────────
@@ -73,7 +114,6 @@ nav {
     background: white;
     padding: 0 30px;
     display: flex;
-    gap: 0;
     border-bottom: 2px solid #f0f2f5;
 }
 
@@ -206,9 +246,7 @@ main {
 /* ─────────────────────────────────────
    WAREHOUSE GRID
 ───────────────────────────────────── */
-.level-container {
-    margin-bottom: 20px;
-}
+.level-container { margin-bottom: 20px; }
 
 .level-label {
     font-size: 13px;
@@ -252,7 +290,7 @@ main {
     box-shadow: 0 0 0 3px rgba(37,99,235,0.2) !important;
 }
 
-.slot.empty {
+.slot.empty    {
     background: #dcfce7;
     border-color: #86efac;
 }
@@ -379,18 +417,11 @@ main {
     transition: all 0.2s;
 }
 
-.btn:hover { opacity: 0.9; transform: translateY(-1px); }
+.btn:hover  { opacity: 0.9; transform: translateY(-1px); }
 .btn:active { transform: translateY(0); }
 
-.btn-retrieve {
-    background: #2563eb;
-    color: white;
-}
-
-.btn-store {
-    background: #16a34a;
-    color: white;
-}
+.btn-retrieve { background: #2563eb; color: white; }
+.btn-store    { background: #16a34a; color: white; }
 
 .btn-cancel {
     background: #f3f4f6;
@@ -446,7 +477,7 @@ main {
 }
 
 /* ─────────────────────────────────────
-   GRIPPER STATUS
+   GRIPPER AND RESERVED STATUS
 ───────────────────────────────────── */
 .gripper-status,
 .reserved-status {
@@ -473,24 +504,23 @@ main {
 }
 
 .status-row:last-child { border-bottom: none; }
-
 .status-label { color: #888; }
 .status-value { font-weight: 600; color: #374151; }
 
 /* ─────────────────────────────────────
-   RESERVED SLOTS LIST
+   RESERVED ROWS
 ───────────────────────────────────── */
 .reserved-row {
     display: flex;
     justify-content: space-between;
-    padding: 6px 0;
+    align-items: center;
+    padding: 8px 0;
     border-bottom: 1px solid #e5e7eb;
     font-size: 13px;
 }
 
 .reserved-row:last-child { border-bottom: none; }
-
-.reserved-name { color: #888; }
+.reserved-name { color: #555; }
 
 .reserved-badge {
     padding: 2px 8px;
@@ -499,12 +529,5 @@ main {
     font-weight: 600;
 }
 
-.badge-empty {
-    background: #dcfce7;
-    color: #16a34a;
-}
-
-.badge-occupied {
-    background: #fee2e2;
-    color: #dc2626;
-}
+.badge-empty    { background: #dcfce7; color: #16a34a; }
+.badge-occupied { background: #fee2e2; color: #dc2626; }
